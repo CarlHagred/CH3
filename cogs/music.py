@@ -2,19 +2,18 @@ from logging import currentframe
 import discord
 from discord.ext import commands
 import wavelink
+import yt_dlp
 
 
 class Music(commands.Cog):
-    vc: wavelink.Player = None
+    vc = None
     current_track = None
 
     def __init__(self, bot):
         self.bot = bot
 
     async def setup(self):
-        await wavelink.NodePool.create_node(
-            bot=self.bot, host="localhost", port=2333, password="changeme"
-        )
+        pass
 
     @commands.Cog.listener()
     async def on_wavelink_node_ready(self, node: wavelink.Node):
@@ -24,15 +23,47 @@ class Music(commands.Cog):
     async def join(self, ctx):
         channel = ctx.author.voice.channel
         if channel:
-            self.vc = await channel.connect(cls=wavelink.Player)
+            self.vc = await channel.connect()
+
+    async def download_mp3(self, youtube_url, output_path="song.mp3"):
+        ydl_opts = {
+            'format': 'bestaudio/best',
+            'postprocessors': [{
+                'key': 'FFmpegExtractAudio',
+                'preferredcodec': 'mp3',
+                'preferredquality': '192',
+            }],
+            'outtmpl': output_path,
+            'noplaylist': True,
+        }
+
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([youtube_url])
+
+        return output_path   
 
     @commands.command()
     async def add(self, ctx, *search_words: str):
-        chosen_track = await wavelink.YouTubeTrack.search(
-            query=" ".join(search_words), return_first=True
-        )
+        chosen_track = await self.download_mp3(" ".join(search_words), "song.mp3")
         if chosen_track:
             self.current_track = chosen_track
+
+        if not ctx.author.voice:
+            await ctx.send("You need to be in a voice channel to play music!")
+            return
+        
+        channel = ctx.author.voice.channel
+        voice_client = await channel.connect()
+
+        voice_client.play(discord.FFmpegPCMAudio(self.current_track))
+
+        while voice_client.is_playing():
+            await discord.utils.sleep_until(voice_client.is_done())
+        
+        await voice_client.disconnect()
+        os.remove(mp3_path)
+    
+
 
     @commands.command()
     async def play(self, ctx):
