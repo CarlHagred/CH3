@@ -25,7 +25,7 @@ class Music(commands.Cog):
         if channel:
             self.vc = await channel.connect()
 
-    async def download_mp3(self, youtube_url, output_path="song.mp3"):
+    async def download_mp3(self, youtube_url, output_path="song"):
         ydl_opts = {
             'format': 'bestaudio/best',
             'postprocessors': [{
@@ -40,11 +40,11 @@ class Music(commands.Cog):
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([youtube_url])
 
-        return output_path   
+        return output_path + ".mp3" 
 
     @commands.command()
     async def add(self, ctx, *search_words: str):
-        chosen_track = await self.download_mp3(" ".join(search_words), "song.mp3")
+        chosen_track = await self.download_mp3(" ".join(search_words), "song")
         if chosen_track:
             self.current_track = chosen_track
 
@@ -56,12 +56,13 @@ class Music(commands.Cog):
         voice_client = await channel.connect()
 
         voice_client.play(discord.FFmpegPCMAudio(self.current_track))
-
+        '''
         while voice_client.is_playing():
             await discord.utils.sleep_until(voice_client.is_done())
         
         await voice_client.disconnect()
         os.remove(mp3_path)
+        '''
     
 
 
